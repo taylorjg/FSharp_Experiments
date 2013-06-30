@@ -27,32 +27,32 @@ let int32U st =
     let b3 = int (byteU st)
     b0 ||| (b1 <<< 8) ||| (b2 <<< 16) ||| (b3 <<< 24)
 
-let tup2P p1 p2 (a, b) (st: OutState) =
+let tup2P p1 p2 (a, b) st =
     (p1 a st: unit)
     (p2 b st: unit)
 
-let tup3P p1 p2 p3 (a, b, c) (st: OutState) =
+let tup3P p1 p2 p3 (a, b, c) st =
     (p1 a st: unit)
     (p2 b st: unit)
     (p3 c st: unit)
 
-let tup2U u1 u2 (st: InState) =
+let tup2U u1 u2 st =
     let a = u1 st
     let b = u2 st
     (a, b)
 
-let tup3U u1 u2 u3 (st: InState) =
+let tup3U u1 u2 u3 st =
     let a = u1 st
     let b = u2 st
     let c = u3 st
     (a, b, c)
 
-let rec listP p lst (st: OutState) =
+let rec listP p lst st =
     match lst with
     | [] -> byteP 0uy st
     | h :: t -> byteP 1uy st; p h st; listP p t st
 
-let listU u (st: InState) =
+let listU u st =
     let rec loop acc =
         let tag = byteU st
         match tag with
@@ -60,7 +60,3 @@ let listU u (st: InState) =
         | 1uy -> let a = u st in loop (a :: acc)
         | n -> failwithf "listU: found number %d" n
     loop []
-
-type format = list<int32 * bool>
-//let formatP = listP (tup2P int32P boolP)
-//let formatU = listU (tup2U int32U boolU)

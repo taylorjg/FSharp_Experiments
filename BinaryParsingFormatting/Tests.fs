@@ -99,3 +99,23 @@ type Tests() =
 
         // Assert
         Assert.That(actual, Is.EqualTo([1; 2; 3]));
+
+    [<Test>]    
+    member x.CanWriteAndReadListOfTuple() =
+
+        // Arrange
+        use ms = new System.IO.MemoryStream()
+        use os = new System.IO.BinaryWriter(ms)
+        use is = new System.IO.BinaryReader(ms)
+
+        let formatP = listP (tup2P int32P boolP)
+        let formatU = listU (tup2U int32U boolU)
+
+        // Act
+        let data = [(102, true); (108, false)]
+        formatP data os
+        ms.Seek(0L, System.IO.SeekOrigin.Begin) |> ignore
+        let actual = formatU is
+
+        // Assert
+        Assert.That(actual, Is.EqualTo(data));
