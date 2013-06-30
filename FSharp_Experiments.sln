@@ -3,6 +3,15 @@ Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "RecursiveDescentParsing", "RecursiveDescentParsing\RecursiveDescentParsing.fsproj", "{E5108ED2-5373-4E5F-AE34-5233F62CE9CA}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BinaryParsingFormatting", "BinaryParsingFormatting\BinaryParsingFormatting.fsproj", "{D7D88E3A-9E22-4036-95EF-3B68C65D43E7}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".nuget", ".nuget", "{7439930E-78B4-41C0-97FC-1F5646ABA53D}"
+	ProjectSection(SolutionItems) = preProject
+		.nuget\NuGet.Config = .nuget\NuGet.Config
+		.nuget\NuGet.exe = .nuget\NuGet.exe
+		.nuget\NuGet.targets = .nuget\NuGet.targets
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -13,6 +22,10 @@ Global
 		{E5108ED2-5373-4E5F-AE34-5233F62CE9CA}.Debug|x86.Build.0 = Debug|x86
 		{E5108ED2-5373-4E5F-AE34-5233F62CE9CA}.Release|x86.ActiveCfg = Release|x86
 		{E5108ED2-5373-4E5F-AE34-5233F62CE9CA}.Release|x86.Build.0 = Release|x86
+		{D7D88E3A-9E22-4036-95EF-3B68C65D43E7}.Debug|x86.ActiveCfg = Debug|x86
+		{D7D88E3A-9E22-4036-95EF-3B68C65D43E7}.Debug|x86.Build.0 = Debug|x86
+		{D7D88E3A-9E22-4036-95EF-3B68C65D43E7}.Release|x86.ActiveCfg = Release|x86
+		{D7D88E3A-9E22-4036-95EF-3B68C65D43E7}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

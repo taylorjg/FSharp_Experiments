@@ -1,4 +1,8 @@
-﻿open System.Text.RegularExpressions
+﻿// This is essentially code from Chapter 8 of "Expert F# 3.0", ISBN: 9781430246503, Authors: Don Syme, Adam Granicz, Antonio Cisternino
+
+module Program
+
+open System.Text.RegularExpressions
 
 type Token =
     | ID of string
