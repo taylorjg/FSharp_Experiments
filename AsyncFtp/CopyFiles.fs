@@ -17,6 +17,11 @@ type public NotificationEventDelegate = delegate of obj * NotificationEventArgs 
 
 type public CopyFiles() =
 
+    // TODO: refactor network credentials - pass username/password to constructor
+    // TODO: use a constant for the connection group name
+    // TODO: add a bool flag to NotificationEventArgs to differentiate between info and error messages ?
+    // - or use a separate event for errors ?
+
     let notificationEvent = new Event<NotificationEventDelegate, NotificationEventArgs>()
 
     member private x.Notify(message) =
@@ -38,35 +43,35 @@ type public CopyFiles() =
             stream.CopyTo(requestStream)
         end
         use response = request.GetResponse()
-        use responseStream = response.GetResponseStream()
-        use reader = new StreamReader(responseStream)
-        reader.ReadToEnd()
+        ()
 
-    member public x.UploadFiles n serverIpAddress directory fileNameBase fileContents =
-        x.Notify "Beginning UploadFiles"
+    member public x.UploadFilesInParallel n serverIpAddress directory fileNameBase fileContents =
+        x.Notify "Beginning UploadFilesInParallel"
         let computations = [for i in 1..n -> x.UploadFileAsync serverIpAddress directory (sprintf "%s%d.txt" fileNameBase i) fileContents]
-        let result = Async.Parallel computations |> Async.RunSynchronously
-        x.Notify "Ending UploadFiles"
-        result
+        Async.Parallel computations |> Async.RunSynchronously |> ignore
+        x.Notify "Ending UploadFilesInParallel"
+        ()
 
-    member public x.CopyFiles (dict:ConcurrentDictionary<string, byte[]>) (listing:IList<string>) srcIp srcDir dstIp dstDir =
-        x.Notify "Beginning CopyFiles"
+    member public x.CopyFilesInParallel (dict:ConcurrentDictionary<string, byte[]>) (listing:IList<string>) srcIp srcDir dstIp dstDir =
+        x.Notify "Beginning CopyFilesInParallel"
         let computations = [
             for fileName in dict.Keys -> async {
                 try
                     if not (listing.Contains(fileName)) then
                         let fileContents = ref dict.[fileName]
                         if !fileContents = null then
-                            let! temp = x.DownloadFile srcIp srcDir fileName
+                            let! temp = x.DownloadFileAsync srcIp srcDir fileName
                             dict.[fileName] <- temp
                             fileContents := temp
                         do! x.UploadFileAsync dstIp dstDir fileName !fileContents
+                    else
+                        x.Notify (sprintf @"Skipping ""%s""" fileName)
                 with
-                    err -> x.Notify (sprintf "Exception in CopyFiles for file %s: %s" fileName err.Message)
+                    err -> x.Notify (sprintf @"Exception in CopyFiles for file ""%s"": %s" fileName err.Message)
             }
         ]
         Async.Parallel computations |> Async.RunSynchronously |> ignore
-        x.Notify "Ending CopyFiles"
+        x.Notify "Ending CopyFilesInParallel"
         ()
 
     member private x.UploadFileAsync serverIpAddress directory fileName fileContents =
@@ -87,7 +92,7 @@ type public CopyFiles() =
             ()
         }
 
-    member private x.DownloadFile srcIp srcDir fileName = 
+    member private x.DownloadFileAsync srcIp srcDir fileName = 
         async {
             x.Notify (sprintf "Beginning DownloadFile (%s)" fileName)
             let uri = sprintf "ftp://%s/%s/%s" srcIp srcDir fileName
