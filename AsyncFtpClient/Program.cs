@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+//using System.Text;
 
 namespace AsyncFtpClient
 {
@@ -23,15 +24,16 @@ namespace AsyncFtpClient
             //var result2 = x.UploadFiles(15, "192.168.0.133", "LoopMonTest", "FSharpFileAsync", bytes);
 
             var dict = new ConcurrentDictionary<string, byte[]>();
-            dict["file1.txt"] = null;
-            dict["file2.txt"] = null;
-            dict["file3.txt"] = null;
+            foreach (var fileName in Enumerable.Range(1, 12).Select(fileNumber => string.Format("file{0}.txt", fileNumber)))
+            {
+                dict[fileName] = null;
+            }
 
-            var listing = new[]
+            var listing = new List<string>
                 {
                     "file3.txt",
                     "file4.txt"
-                }.ToList();
+                };
 
             x.CopyFiles(
                 dict,

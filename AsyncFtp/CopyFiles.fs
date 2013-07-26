@@ -53,13 +53,16 @@ type public CopyFiles() =
         x.Notify "Beginning CopyFiles"
         let computations = [
             for fileName in dict.Keys -> async {
-                if not (listing.Contains(fileName)) then
-                    let fileContents = dict.[fileName]
-                    if fileContents = null then
-                        let! fileContents2 = x.DownloadFile srcIp srcDir fileName
-                        dict.[fileName] <- fileContents2
-                    let! junk = x.UploadFileAsync dstIp dstDir fileName dict.[fileName]
-                    ()
+                try
+                    if not (listing.Contains(fileName)) then
+                        let fileContents = ref dict.[fileName]
+                        if !fileContents = null then
+                            let! temp = x.DownloadFile srcIp srcDir fileName
+                            dict.[fileName] <- temp
+                            fileContents := temp
+                        do! x.UploadFileAsync dstIp dstDir fileName !fileContents
+                with
+                    err -> x.Notify (sprintf "Exception in CopyFiles for file %s: %s" fileName err.Message)
             }
         ]
         Async.Parallel computations |> Async.RunSynchronously |> ignore
@@ -74,17 +77,14 @@ type public CopyFiles() =
             let request = WebRequest.Create(uri, Method = WebRequestMethods.Ftp.UploadFile, Credentials = nc) :?> FtpWebRequest
             request.KeepAlive <- true
             request.UseBinary <- true
-            request.ConnectionGroupName <- "UploadFileAsync"
+            request.ConnectionGroupName <- "FtpWebRequest-JT"
             do! async {
                 use requestStream = request.GetRequestStream()
                 do! requestStream.AsyncWrite(fileContents)
             }
             use! response = request.AsyncGetResponse()
-            use responseStream = response.GetResponseStream()
-            use reader = new StreamReader(responseStream)
-            let! result = reader.AsyncReadToEnd()
             x.Notify (sprintf "Ending UploadFileAsync (%s)" fileName)
-            return result
+            ()
         }
 
     member private x.DownloadFile srcIp srcDir fileName = 
@@ -95,11 +95,15 @@ type public CopyFiles() =
             let request = WebRequest.Create(uri, Method = WebRequestMethods.Ftp.DownloadFile, Credentials = nc) :?> FtpWebRequest
             request.KeepAlive <- true
             request.UseBinary <- true
-            request.ConnectionGroupName <- "UploadFileAsync"
+            request.ConnectionGroupName <- "FtpWebRequest-JT"
             use! response = request.AsyncGetResponse()
             use responseStream = response.GetResponseStream()
+            // Currently, we are doing a synchronous read because I cannot find
+            // an async operation to read to the end of a stream in a binary manner
+            // (we want the result to be a byte[] - not a string)
             use memoryStream = new MemoryStream()
             responseStream.CopyTo(memoryStream)
             x.Notify (sprintf "Ending DownloadFile (%s)" fileName)
+            // This isn't ideal either - we are making a copy of the file contents.
             return memoryStream.ToArray()
         }
