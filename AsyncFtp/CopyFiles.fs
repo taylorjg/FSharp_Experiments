@@ -131,16 +131,8 @@ type public CopyFiles(ftpUserName : string, ftpPassword : string) =
             request.ConnectionGroupName <- MyConnectionGroupName
             use! response = request.AsyncGetResponse()
             use responseStream = response.GetResponseStream()
-
-//            // Currently, we are doing a synchronous read because I cannot find
-//            // an async operation to read to the end of a stream in a binary manner
-//            // (we want the result to be a byte[] - not a string)
-//            use memoryStream = new MemoryStream()
-//            responseStream.CopyTo(memoryStream)
-//            x.Notify (sprintf "Ending DownloadFile (%s)" fileName)
-//            // This isn't ideal either - we are making a copy of the file contents.
-//            return memoryStream.ToArray()
-
             let asyncStream = new AsyncStream(responseStream)
-            return! asyncStream.ReadToEnd()
+            let! result = asyncStream.ReadToEnd()
+            x.Notify (sprintf "Ending DownloadFile (%s)" fileName)
+            return result
         }
