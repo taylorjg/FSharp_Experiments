@@ -17,7 +17,7 @@ namespace AsyncFtpClient
             const string fileContents = "This file was uploaded via F#";
             var bytes = Encoding.UTF8.GetBytes(fileContents);
 
-            var x = new AsyncFtp.CopyFiles();
+            var x = new AsyncFtp.CopyFiles("env6ftp", "w1nd0w5.");
             x.Notification += (s, e) => Console.WriteLine(e.Message);
 
             x.UploadFile("192.168.0.133", "LoopMonTest", "FSharpFileSync.txt", bytes);

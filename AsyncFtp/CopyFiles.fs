@@ -9,18 +9,44 @@ open System.Collections.Generic
 open Microsoft.FSharp.Control.WebExtensions
 open Microsoft.FSharp.Control.StreamReaderExtensions
 
+type private AsyncStream(stream : Stream) =
+
+    static let defaultBufferSize = 4096
+
+    member public x.ReadToEnd() =
+        async {
+                let overallBuffer = ref (Array.zeroCreate<byte> 0)
+
+                let buffer = Array.zeroCreate<byte> defaultBufferSize
+
+                let! temp = stream.AsyncRead(buffer)
+                let cb = ref temp
+
+                while !cb > 0 do
+
+                    let oldOverallBufferLength = (!overallBuffer).Length
+                    let newOverallBufferLength = oldOverallBufferLength + !cb
+                    let newOverallBuffer = Array.zeroCreate<byte> newOverallBufferLength
+                    do System.Buffer.BlockCopy (!overallBuffer, 0, newOverallBuffer, 0, oldOverallBufferLength)
+                    do System.Buffer.BlockCopy (buffer, 0, newOverallBuffer, oldOverallBufferLength, !cb)
+                    overallBuffer := newOverallBuffer
+
+                    let! temp = stream.AsyncRead(buffer)
+                    cb := temp
+
+                return !overallBuffer
+        }            
+
 type NotificationEventArgs(message:string) =
     inherit EventArgs()
     member this.Message = message
 
 type public NotificationEventDelegate = delegate of obj * NotificationEventArgs -> unit
 
-type public CopyFiles() =
+type public CopyFiles(ftpUserName : string, ftpPassword : string) =
 
-    // TODO: refactor network credentials - pass username/password to constructor
-    // TODO: use a constant for the connection group name
-    // TODO: add a bool flag to NotificationEventArgs to differentiate between info and error messages ?
-    // - or use a separate event for errors ?
+    let credentials = new NetworkCredential(ftpUserName, ftpPassword)
+    let MyConnectionGroupName = "FtpWebRequest-JT"
 
     let notificationEvent = new Event<NotificationEventDelegate, NotificationEventArgs>()
 
@@ -33,8 +59,7 @@ type public CopyFiles() =
 
     member public x.UploadFile serverIpAddress directory fileName (fileContents : byte[]) =
         let uri = sprintf "ftp://%s/%s/%s" serverIpAddress directory fileName
-        let nc = new NetworkCredential("env6ftp", "w1nd0w5.")
-        let request = WebRequest.Create(uri, Method = WebRequestMethods.Ftp.UploadFile, Credentials = nc) :?> FtpWebRequest
+        let request = WebRequest.Create(uri, Method = WebRequestMethods.Ftp.UploadFile, Credentials = credentials) :?> FtpWebRequest
         request.KeepAlive <- true
         request.UseBinary <- true
         begin
@@ -51,6 +76,11 @@ type public CopyFiles() =
         Async.Parallel computations |> Async.RunSynchronously |> ignore
         x.Notify "Ending UploadFilesInParallel"
         ()
+
+    // TODO: add a bool flag to NotificationEventArgs to differentiate between info and error messages ?
+    // - or use a separate event for errors ?
+    // - or raise an exception ? or several exceptions ?
+    // - also, pass in a bunch of counters - downloaded, uploaded, skipped, etc.
 
     member public x.CopyFilesInParallel (dict:ConcurrentDictionary<string, byte[]>) (listing:IList<string>) srcIp srcDir dstIp dstDir =
         x.Notify "Beginning CopyFilesInParallel"
@@ -78,11 +108,10 @@ type public CopyFiles() =
         async {
             x.Notify (sprintf "Beginning UploadFileAsync (%s)" fileName)
             let uri = sprintf "ftp://%s/%s/%s" serverIpAddress directory fileName
-            let nc = new NetworkCredential("env6ftp", "w1nd0w5.")
-            let request = WebRequest.Create(uri, Method = WebRequestMethods.Ftp.UploadFile, Credentials = nc) :?> FtpWebRequest
+            let request = WebRequest.Create(uri, Method = WebRequestMethods.Ftp.UploadFile, Credentials = credentials) :?> FtpWebRequest
             request.KeepAlive <- true
             request.UseBinary <- true
-            request.ConnectionGroupName <- "FtpWebRequest-JT"
+            request.ConnectionGroupName <- MyConnectionGroupName
             do! async {
                 use requestStream = request.GetRequestStream()
                 do! requestStream.AsyncWrite(fileContents)
@@ -96,19 +125,22 @@ type public CopyFiles() =
         async {
             x.Notify (sprintf "Beginning DownloadFile (%s)" fileName)
             let uri = sprintf "ftp://%s/%s/%s" srcIp srcDir fileName
-            let nc = new NetworkCredential("env6ftp", "w1nd0w5.")
-            let request = WebRequest.Create(uri, Method = WebRequestMethods.Ftp.DownloadFile, Credentials = nc) :?> FtpWebRequest
+            let request = WebRequest.Create(uri, Method = WebRequestMethods.Ftp.DownloadFile, Credentials = credentials) :?> FtpWebRequest
             request.KeepAlive <- true
             request.UseBinary <- true
-            request.ConnectionGroupName <- "FtpWebRequest-JT"
+            request.ConnectionGroupName <- MyConnectionGroupName
             use! response = request.AsyncGetResponse()
             use responseStream = response.GetResponseStream()
-            // Currently, we are doing a synchronous read because I cannot find
-            // an async operation to read to the end of a stream in a binary manner
-            // (we want the result to be a byte[] - not a string)
-            use memoryStream = new MemoryStream()
-            responseStream.CopyTo(memoryStream)
-            x.Notify (sprintf "Ending DownloadFile (%s)" fileName)
-            // This isn't ideal either - we are making a copy of the file contents.
-            return memoryStream.ToArray()
+
+//            // Currently, we are doing a synchronous read because I cannot find
+//            // an async operation to read to the end of a stream in a binary manner
+//            // (we want the result to be a byte[] - not a string)
+//            use memoryStream = new MemoryStream()
+//            responseStream.CopyTo(memoryStream)
+//            x.Notify (sprintf "Ending DownloadFile (%s)" fileName)
+//            // This isn't ideal either - we are making a copy of the file contents.
+//            return memoryStream.ToArray()
+
+            let asyncStream = new AsyncStream(responseStream)
+            return! asyncStream.ReadToEnd()
         }
